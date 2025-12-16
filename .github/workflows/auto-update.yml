@@ -46,8 +46,6 @@ jobs:
           status_options: '--untracked-files=no' 
           
           # 💡 오류 수정 #2: "branch diverged" 오류 방지
-          # 커밋 전에 원격 저장소의 최신 변경 사항을 rebase 방식으로 병합하여 브랜치 분기를 방지
-          pull_options: '--rebase'
-          
+          push_options: '--force'          
           # (선택 사항) Action 자체의 검사를 건너뛰어 안정성 향상
           skip_dirty_check: true
