@@ -15,30 +15,30 @@ jobs:
   permissions:
    contents: write
   
-  steps:
-   - name: ⬇️ Checkout Repository
-    # 저장소의 코드를 워크플로우 환경으로 가져옵니다.
-    uses: actions/checkout@v4
-   
-   - name: 🐍 Set up Python 3.x
-    # Python 환경을 설정하고 PyYAML 및 requests 설치에 필요한 캐시를 구성합니다.
-    uses: actions/setup-python@v5
-    with:
-     python-version: '3.x'
+ steps:
+  - name: ⬇️ Checkout Repository
+   # 저장소의 코드를 워크플로우 환경으로 가져옵니다.
+   uses: actions/checkout@v4
+  
+  - name: 🐍 Set up Python 3.x
+   # Python 환경을 설정하고 PyYAML 및 requests 설치에 필요한 캐시를 구성합니다.
+   uses: actions/setup-python@v5
+   with:
+    python-version: '3.x'
 
-   - name: 📦 Install Dependencies (requests, PyYAML)
-    # requirements.txt 파일에 정의된 의존성을 설치합니다.
-    run: pip install -r requirements.txt
+  - name: 📦 Install Dependencies (requests, PyYAML)
+   # requirements.txt 파일에 정의된 의존성을 설치합니다.
+   run: pip install -r requirements.txt
 
-   - name: 🚀 Run Proxy Update Script
-    # Python 스크립트를 실행하여 cfproxy.txt 파일을 생성하거나 업데이트합니다.
-    run: python update_proxy.py
+  - name: 🚀 Run Proxy Update Script
+   # Python 스크립트를 실행하여 cfproxy.txt 파일을 생성하거나 업데이트합니다.
+   run: python update_proxy.py
 
-   - name: 💾 Commit and Push changes
-    # 변경된 파일(cfproxy.txt)이 있다면 자동으로 커밋하고 푸시합니다.
-    uses: stefanzweifel/git-auto-commit-action@v5
-    with:
-     file_pattern: 'cfproxy.txt'
-     commit_message: "🤖 Feat: cfproxy.txt 자동 업데이트"
-     # 푸시가 실패하더라도 워크플로우를 실패시키지 않음
-     skip_dirty_check: true
+  - name: 💾 Commit and Push changes
+   # 변경된 파일(cfproxy.txt)이 있다면 자동으로 커밋하고 푸시합니다.
+   uses: stefanzweifel/git-auto-commit-action@v5
+   with:
+    file_pattern: 'cfproxy.txt'
+    commit_message: "🤖 Feat: cfproxy.txt 자동 업데이트"
+    # 푸시가 실패하더라도 워크플로우를 실패시키지 않음
+    skip_dirty_check: true
