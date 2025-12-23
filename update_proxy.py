@@ -79,6 +79,12 @@ def extract_ip_port_country_code_yaml(url: str) -> List[str]:
             
             # 한국어 국가명 가져오기
             korean_name = get_korean_country_name(raw_country_code)
+
+            # --- 사용자 요청에 따른 특정 국가 코드 처리 ---
+            if raw_country_code == 'CF':
+                raw_country_code = 'HK' # 국가 코드 변경
+                korean_name = 'SPEED'   # 한국어 국가명 변경
+            # ---------------------------------------------
             
             # IP 주소 정렬을 위한 숫자 리스트 (try-except로 IP 형식 유효성 검사)
             try:
