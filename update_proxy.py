@@ -1,124 +1,96 @@
 import re
 import requests
-import yaml # YAML 파서 라이브러리 (pip install pyyaml 필요)
+import yaml
 from typing import List, Dict, Any
 
-# 국가 코드 -> 한국어 국가명 매핑
-# (기존 맵을 그대로 사용)
-COUNTRY_CODE_TO_KOREAN: Dict[str, str] = {
+# 1. 국가 키워드 매핑 (영어 및 중국어 포함)
+COUNTRY_MAP: Dict[str, str] = {
+    # 영어 코드
     'HK': '홍콩', 'HKG': '홍콩', 'SG': '싱가포르', 'SGP': '싱가포르', 
     'JP': '일본', 'JPN': '일본', 'KR': '한국', 'KOR': '한국', 
     'TW': '대만', 'TWN': '대만', 'CN': '중국', 'CHN': '중국',
-    'US': '미국', 'USA': '미국', 'GB': '영국', 'GBR': '영국',
-    'FR': '프랑스', 'FRA': '프랑스', 'DE': '독일', 'DEU': '독일',
-    'IT': '이탈리아', 'ITA': '이탈리아', 'ES': '스페인', 'ESP': '스페인',
+    'US': '미국', 'USA': '미국',
+    # 중국어 간체 (사용자 요청 반영)
+    '香港': '홍콩', '日本': '일본', '新加坡': '싱가포르', '美国': '미국',
+    '韩国': '한국', '台湾': '대만', '中国': '중국', '德': '독일', '英': '영국'
 }
 
-# 정규식 패턴: 이름에서 2~3자리 국가 코드를 찾기 위함
-# 예: 🚀US-Proxy -> US, HKG-Node -> HKG
-NAME_COUNTRY_PATTERN = re.compile(r'(?P<country_code>[A-Z]{2,3})', re.IGNORECASE)
+# 2. 통신사 및 기타 키워드 번역 (선택 사항)
+ISP_MAP: Dict[str, str] = {
+    '电信': '텔레콤', '联通': '유니콤', '移动': '이', '优选': '최적화'
+}
 
+def translate_name_to_info(name: str):
+    """이름에서 국가 코드와 한국어 이름을 추출"""
+    raw_code = 'N/A'
+    kor_name = '알수없음'
 
-def get_korean_country_name(country_code: str) -> str:
-    """국가 코드를 한국어 국가명으로 변환 및 3자리 -> 2자리 코드 처리"""
-    if not country_code or country_code == 'N/A':
-        return '알수없음'
+    # 1. 중국어 키워드 우선 체크
+    for cn_key, ko_val in COUNTRY_MAP.items():
+        if cn_key in name:
+            kor_name = ko_val
+            # 출력 형식 유지를 위해 대표 코드 할당 (예: 홍콩 -> HK)
+            reverse_map = {'홍콩': 'HK', '일본': 'JP', '싱가포르': 'SG', '미국': 'US', '한국': 'KR', '대만': 'TW', '중국': 'CN'}
+            raw_code = reverse_map.get(ko_val, 'ETC')
+            break
     
-    code_upper = country_code.upper()
-    
-    # 1. 맵에 직접 매칭 시도
-    if code_upper in COUNTRY_CODE_TO_KOREAN:
-        return COUNTRY_CODE_TO_KOREAN[code_upper]
-    
-    # 2. 3자리 코드인 경우 2자리로 잘라서 매칭 시도 (예: KOR -> KR)
-    if len(code_upper) == 3:
-        two_char_code = code_upper[:2]
-        if two_char_code in COUNTRY_CODE_TO_KOREAN:
-            return COUNTRY_CODE_TO_KOREAN[two_char_code]
-    
-    # 3. 매칭되는 이름이 없는 경우 원래 코드를 반환
-    return code_upper
+    # 2. 중국어가 없고 영어 코드가 있는 경우 (기존 로직)
+    if raw_code == 'N/A':
+        match = re.search(r'([A-Z]{2,3})', name.upper())
+        if match:
+            raw_code = match.group(1)
+            # 기존 COUNTRY_MAP에서 한국어 이름 찾기
+            kor_name = COUNTRY_MAP.get(raw_code, raw_code)
 
+    return raw_code, kor_name
 
 def extract_ip_port_country_code_yaml(url: str) -> List[str]:
-    """
-    URL에서 YAML 데이터를 가져와 PyYAML 파서로 파싱 후, 
-    프록시 목록에서 IP, Port, 국가 코드를 추출하고 정렬하여 반환합니다.
-    """
-    extracted_data: List[Dict[str, Any]] = []
-    
+    extracted_data = []
     try:
-        # 1. 데이터 다운로드
-        response = requests.get(
-            url, 
-            timeout=20, # 타임아웃을 20초로 늘려 안정성 확보
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        )
-        response.raise_for_status() # HTTP 오류 발생 시 예외 처리
-        
-        # 2. YAML 파싱
+        response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
+        response.raise_for_status()
         config_data = yaml.safe_load(response.text)
         
-        if not isinstance(config_data, dict) or 'proxies' not in config_data:
-            print("오류: 다운로드된 콘텐츠가 유효한 YAML 형식이거나 'proxies' 키를 포함하지 않습니다.")
+        if not config_data or 'proxies' not in config_data:
             return []
-            
-        # 3. 프록시 목록 순회 및 추출
+
         for proxy in config_data['proxies']:
-            # 필요한 키가 모두 있는지 확인
-            server = proxy.get('server')
-            port = proxy.get('port')
+            server = str(proxy.get('server', ''))
+            port = proxy.get('port', '')
             name = proxy.get('name', '')
-            
-            if not server or not port:
-                continue
-            
-            # 이름에서 국가 코드 추출 시도
-            match = NAME_COUNTRY_PATTERN.search(name)
-            raw_country_code = match.group('country_code').upper() if match else 'N/A'
-            
-            # 한국어 국가명 가져오기
-            korean_name = get_korean_country_name(raw_country_code)
 
-            # --- 사용자 요청에 따른 특정 국가 코드 처리 ---
-            if raw_country_code == 'CF':
-                raw_country_code = 'HK' # 국가 코드 변경
-                korean_name = 'SPEED'   # 한국어 국가명 변경
-            # ---------------------------------------------
+            if not server or not port: continue
+
+            # 국가 정보 추출 (중국어/영어 통합 처리)
+            raw_country_code, korean_name = translate_name_to_info(name)
+
+            # --- CF(Cloudflare) 특수 처리 로직 ---
+            if 'CF' in name.upper() or '优选' in name:
+                raw_country_code = 'HK' 
+                korean_name = 'SPEED'
+            # ------------------------------------
+
+            # IP 형식 확인 (IPv6 고려)
+            is_ipv6 = '[' in server or ':' in server.replace('.', '')
             
-            # IP 주소 정렬을 위한 숫자 리스트 (try-except로 IP 형식 유효성 검사)
+            # 정렬을 위한 가중치 (IPv4는 숫자 리스트, IPv6/도메인은 문자열)
             try:
-                ip_parts = list(map(int, server.split('.')))
-                if len(ip_parts) != 4:
-                     continue
+                ip_parts = list(map(int, server.split('.'))) if not is_ipv6 else [999, 999, 999, 999]
             except ValueError:
-                # IP 주소 형식이 잘못된 경우 (예: 도메인 이름) 건너뜀
-                continue 
-            
-            entry = {
-                'ip_parts': ip_parts,
-                'string': f"{server}:{port}#{raw_country_code} {korean_name} {port}"
-            }
-            
-            # 중복 제거
-            if entry['string'] not in [e['string'] for e in extracted_data]:
-                extracted_data.append(entry)
-        
-        # 4. IP 주소 기준 정렬
-        extracted_data.sort(key=lambda x: x['ip_parts'])
-        
-        return [entry['string'] for entry in extracted_data]
-        
-    except requests.exceptions.RequestException as e:
-        print(f"네트워크 오류 또는 타임아웃 발생: {e}")
-        return []
-    except yaml.YAMLError as e:
-        print(f"YAML 파싱 오류 발생: {e}")
-        return []
-    except Exception as e:
-        print(f"알 수 없는 오류 발생: {e}")
-        return []
+                ip_parts = [999, 999, 999, 999] # 도메인인 경우 맨 뒤로
 
+            entry_str = f"{server}:{port}#{raw_country_code} {korean_name} {port}"
+            
+            if entry_str not in [e['string'] for e in extracted_data]:
+                extracted_data.append({'ip_parts': ip_parts, 'string': entry_str})
+
+        extracted_data.sort(key=lambda x: x['ip_parts'])
+        return [e['string'] for e in extracted_data]
+
+    except Exception as e:
+        print(f"오류 발생: {e}")
+        return []
+        
 # URL
 #REAL_TARGET_URL = "https://api.subcsub.com/sub?target=clash&url=https%3A%2F%2Fcm.soso.edu.kg%2Fsub%3Fpassword%3Daaa%26security%3Dtls%26type%3Dws%26host%3Daaaa%26sni%3Daaa%26path%3D%252Fproxyip%253DProxyIP.JP.CMLiussss.Net%26encryption%3Dnone%26allowInsecure%3D1&insert=false&config=https%3A%2F%2Fraw.githubusercontent.com%2Fcmliu%2FACL4SSR%2Fmain%2FClash%2Fconfig%2FACL4SSR_Online.ini&emoji=true&list=true&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false&new_name=true"
 REAL_TARGET_URL = "https://api.subcsub.com/sub?target=clash&url=https%3A%2F%2Fcm.soso.edu.kg%2Fsub%3Fpassword%3Daaa%26security%3Dtls%26type%3Dws%26host%3Daaaa%26sni%3Daaa%26path%3D%252Fproxyip%253DProxyIP.JP.CMLiussss.Net%26encryption%3Dnone%26allowInsecure%3D1%7Chttps%3A%2F%2Fsub.cmliussss.net%2Fsub%3Fpassword%3Daaa%26security%3Dtls%26type%3Dws%26host%3Daaaa%26sni%3Daaa%26path%3D%252Fproxyip%253DProxyIP.JP.CMLiussss.Net%26encryption%3Dnone%26allowInsecure%3D1&insert=false"
