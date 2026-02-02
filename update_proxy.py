@@ -3,48 +3,49 @@ import requests
 import yaml
 from typing import List, Dict, Any
 
-# 1. 국가 키워드 매핑 (영어 및 중국어 포함)
+# 국가 매핑 정보 (중국어 간체 및 영어 코드 통합)
 COUNTRY_MAP: Dict[str, str] = {
-    # 영어 코드
-    'HK': '홍콩', 'HKG': '홍콩', 'SG': '싱가포르', 'SGP': '싱가포르', 
-    'JP': '일본', 'JPN': '일본', 'KR': '한국', 'KOR': '한국', 
-    'TW': '대만', 'TWN': '대만', 'CN': '중국', 'CHN': '중국',
-    'US': '미국', 'USA': '미국',
-    # 중국어 간체 (사용자 요청 반영)
-    '香港': '홍콩', '日本': '일본', '新加坡': '싱가포르', '美国': '미국',
-    '韩国': '한국', '台湾': '대만', '中国': '중국', '德': '독일', '英': '영국'
+    'HK': '홍콩', 'HKG': '홍콩', '香港': '홍콩',
+    'SG': '싱가포르', 'SGP': '싱가포르', '新加坡': '싱가포르',
+    'JP': '일본', 'JPN': '일본', '日本': '일본',
+    'KR': '한국', 'KOR': '한국', '韩国': '한국',
+    'TW': '대만', 'TWN': '대만', '台湾': '대만',
+    'US': '미국', 'USA': '미국', '美国': '미국',
+    'GB': '영국', 'GBR': '영국', '英': '영국',
+    'FR': '프랑스', 'FRA': '프랑스', '法国': '프랑스',
+    'DE': '독일', 'DEU': '독일', '德': '독일',
+    'NL': '네덜란드', 'NLD': '네덜란드', '荷兰': '네덜란드'
 }
 
-# 2. 통신사 및 기타 키워드 번역 (선택 사항)
-ISP_MAP: Dict[str, str] = {
-    '电信': '텔레콤', '联通': '유니콤', '移动': '이', '优选': '최적화'
-}
-
-def translate_name_to_info(name: str):
-    """이름에서 국가 코드와 한국어 이름을 추출"""
-    raw_code = 'N/A'
-    kor_name = '알수없음'
-
-    # 1. 중국어 키워드 우선 체크
-    for cn_key, ko_val in COUNTRY_MAP.items():
-        if cn_key in name:
-            kor_name = ko_val
-            # 출력 형식 유지를 위해 대표 코드 할당 (예: 홍콩 -> HK)
-            reverse_map = {'홍콩': 'HK', '일본': 'JP', '싱가포르': 'SG', '미국': 'US', '한국': 'KR', '대만': 'TW', '중국': 'CN'}
-            raw_code = reverse_map.get(ko_val, 'ETC')
-            break
+def get_info_from_name(name: str):
+    """이름에서 국가코드와 한국어 이름을 추출 (중국어 우선순위)"""
+    name_upper = name.upper()
     
-    # 2. 중국어가 없고 영어 코드가 있는 경우 (기존 로직)
-    if raw_code == 'N/A':
-        match = re.search(r'([A-Z]{2,3})', name.upper())
-        if match:
-            raw_code = match.group(1)
-            # 기존 COUNTRY_MAP에서 한국어 이름 찾기
-            kor_name = COUNTRY_MAP.get(raw_code, raw_code)
+    # 1. 매핑 테이블에 있는 키워드(중국어/영어)가 이름에 포함되어 있는지 확인
+    for keyword, kor_name in COUNTRY_MAP.items():
+        if keyword in name_upper:
+            # 코드 변환 (3자리 -> 2자리 혹은 중국어 -> 영어코드)
+            code = 'HK' if kor_name == '홍콩' else \
+                   'SG' if kor_name == '싱가포르' else \
+                   'JP' if kor_name == '일본' else \
+                   'KR' if kor_name == '한국' else \
+                   'TW' if kor_name == '대만' else \
+                   'US' if kor_name == '미국' else \
+                   'GB' if kor_name == '영국' else \
+                   'FR' if kor_name == '프랑스' else \
+                   'DE' if kor_name == '독일' else \
+                   'NL' if kor_name == '네덜란드' else keyword[:2]
+            return code, kor_name
+            
+    # 2. 못 찾았다면 정규식으로 영어 2~3글자 추출 시도
+    match = re.search(r'([A-Z]{2,3})', name_upper)
+    if match:
+        code = match.group(1)
+        return code, COUNTRY_MAP.get(code, code)
 
-    return raw_code, kor_name
+    return 'N/A', '알수없음'
 
-def extract_ip_port_country_code_yaml(url: str) -> List[str]:
+def extract_all_proxies(url: str) -> List[str]:
     extracted_data = []
     try:
         response = requests.get(url, timeout=20, headers={'User-Agent': 'Mozilla/5.0'})
@@ -58,33 +59,33 @@ def extract_ip_port_country_code_yaml(url: str) -> List[str]:
             server = str(proxy.get('server', ''))
             port = proxy.get('port', '')
             name = proxy.get('name', '')
-
             if not server or not port: continue
 
-            # 국가 정보 추출 (중국어/영어 통합 처리)
-            raw_country_code, korean_name = translate_name_to_info(name)
+            # 국가 정보 추출
+            raw_code, kor_name = get_info_from_name(name)
 
-            # --- CF(Cloudflare) 특수 처리 로직 ---
-            if 'CF' in name.upper() or '优选' in name:
-                raw_country_code = 'HK' 
-                korean_name = 'SPEED'
-            # ------------------------------------
+            # CF优选/移动优选 등 특수 처리
+            if any(keyword in name for keyword in ['优选', 'CF', 'Tg里的']):
+                raw_code = 'HK'
+                kor_name = 'SPEED'
 
-            # IP 형식 확인 (IPv6 고려)
-            is_ipv6 = '[' in server or ':' in server.replace('.', '')
-            
-            # 정렬을 위한 가중치 (IPv4는 숫자 리스트, IPv6/도메인은 문자열)
+            # 정렬용 키 생성 (IP는 숫자 리스트, 도메인은 문자열로 처리하여 에러 방지)
             try:
-                ip_parts = list(map(int, server.split('.'))) if not is_ipv6 else [999, 999, 999, 999]
-            except ValueError:
-                ip_parts = [999, 999, 999, 999] # 도메인인 경우 맨 뒤로
+                # IPv4인 경우 숫자 리스트로 변환하여 자연스러운 정렬 지원
+                sort_key = list(map(int, server.split('.')))
+            except (ValueError, AttributeError):
+                # 도메인이나 IPv6인 경우 정렬 시 에러 방지를 위해 큰 값 부여
+                sort_key = [999, 999, 999, 999]
 
-            entry_str = f"{server}:{port}#{raw_country_code} {korean_name} {port}"
+            entry_str = f"{server}:{port}#{raw_code} {kor_name} {port}"
             
-            if entry_str not in [e['string'] for e in extracted_data]:
-                extracted_data.append({'ip_parts': ip_parts, 'string': entry_str})
+            # 중복 제거 (이미 저장된 문자열인지 확인)
+            if not any(e['string'] == entry_str for e in extracted_data):
+                extracted_data.append({'sort_key': sort_key, 'string': entry_str})
 
-        extracted_data.sort(key=lambda x: x['ip_parts'])
+        # 정렬 (IP 순서대로, 도메인은 뒤로)
+        extracted_data.sort(key=lambda x: (isinstance(x['sort_key'], list), x['sort_key']))
+        
         return [e['string'] for e in extracted_data]
 
     except Exception as e:
