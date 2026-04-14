@@ -13,7 +13,7 @@ COUNTRY_MAP: Dict[str, str] = {
     'FR': '프랑스', 'FRA': '프랑스', '法国': '프랑스',
     'DE': '독일', 'DEU': '독일', '德': '독일',
     'NL': '네덜란드', 'NLD': '네덜란드', '荷兰': '네덜란드',
-    'CF': 'SPEED'
+    'CF': 'SPEED', 'CA': '캐나다'
 }
 
 def save_transformed_ip(url: str, output_filename: str):
