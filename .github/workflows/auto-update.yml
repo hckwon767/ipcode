@@ -28,7 +28,7 @@ jobs:
       - name: 🚀 Run Alive IP Update Script
         run: python aliveip.py
       - name: 🚀 Run Tiancheng Converter Script
-        run: python tiancheng_converter.py
+        run: python Tiancheng converter.py
       - name: 💾 Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
