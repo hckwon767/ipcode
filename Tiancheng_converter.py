@@ -17,7 +17,7 @@ COUNTRY_MAP: Dict[str, str] = {
     'LA': '라오스', 'MM': '미얀마', 'MO': '마카오', 'BD': '방글라데시',
     'PK': '파키스탄', 'IR': '이란', 'IQ': '이라크', 'MN': '몽골',
     'CZ': '체코', 'RO': '루마니아', 'HU': '헝가리', 'GR': '그리스',
-    'BG': '불가리아', 'LU': '룩셈부르크',
+    'BG': '불가리아', 'LU': '룩셈부르크', 'KZ': '카자흐스탄',
 }
 
 
@@ -48,17 +48,23 @@ def save_transformed_ip(url: str, output_filename: str):
             address = address.strip()
 
             # '|' 로 구분된 필드 분리
-            # 형식: ip:port#불필요 | 불필요 | 국가코드 | 불필요
+            # 형식 예시 1 (tiancheng): 불필요 | 불필요 | 국가코드 | 불필요
+            # 형식 예시 2 (cmliu):     불필요 | 국가명(중문) 국가코드 | 불필요
             fields = [f.strip() for f in tag_content.split('|')]
 
-            # 국가코드 필드(index=2)가 없는 라인(공지/헤더성 라인)은 스킵
-            if len(fields) < 3:
-                continue
+            # 각 필드의 마지막 토큰 중에서 영문 2자리 국가코드를 탐색
+            country_code = None
+            for field in fields:
+                tokens = field.split()
+                if not tokens:
+                    continue
+                candidate = tokens[-1].strip().upper()
+                if len(candidate) == 2 and candidate.isascii() and candidate.isalpha():
+                    country_code = candidate
+                    break
 
-            country_code = fields[2].upper()
-
-            # 유효한 국가코드(영문 2자리)인지 확인
-            if len(country_code) != 2 or not country_code.isalpha():
+            # 국가코드를 찾지 못한 라인(공지/헤더성 라인)은 스킵
+            if not country_code:
                 continue
 
             # 포트 추출
@@ -71,7 +77,7 @@ def save_transformed_ip(url: str, output_filename: str):
             country_name = COUNTRY_MAP.get(country_code, country_code)
 
             # 새로운 형식 구성: ip:port#국가이모지 국가명(한국어) port
-            new_line = f"{address}#{emoji} {country_name} {port} 신규"
+            new_line = f"{address}#{emoji} {country_name} {port}"
             result_lines.append(new_line)
 
         # 2. 파일 쓰기
@@ -85,5 +91,5 @@ def save_transformed_ip(url: str, output_filename: str):
 
 
 # 실행
-target_url = "https://bestcf.pages.dev/tiancheng/all.txt"
+target_url = "https://bestcf.pages.dev/cmliu/all.txt"
 save_transformed_ip(target_url, "tiancheng.txt")
