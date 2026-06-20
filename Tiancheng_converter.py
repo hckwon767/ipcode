@@ -71,7 +71,7 @@ def save_transformed_ip(url: str, output_filename: str):
             country_name = COUNTRY_MAP.get(country_code, country_code)
 
             # 새로운 형식 구성: ip:port#국가이모지 국가명(한국어) port
-            new_line = f"{address}#{emoji} {country_name} {port}"
+            new_line = f"{address}#{emoji} {country_name} {port} 신규"
             result_lines.append(new_line)
 
         # 2. 파일 쓰기
