@@ -70,14 +70,11 @@ def save_transformed_ip(url: str, output_filename: str):
             # 포트 추출
             port = address.split(':')[-1]
 
-            # 국기 이모지 생성
-            emoji = country_code_to_emoji(country_code)
-
             # 국가코드 -> 한국어 국가명 (매핑에 없으면 원본 코드 유지)
             country_name = COUNTRY_MAP.get(country_code, country_code)
 
-            # 새로운 형식 구성: ip:port#국가이모지 국가명(한국어) port
-            new_line = f"{address}#{emoji} {country_name} {port}"
+            # 새로운 형식 구성: ip:port#영어국가코드 한글국가명 port
+            new_line = f"{address}#{country_code} {country_name} {port} 신규"
             result_lines.append(new_line)
 
         # 2. 파일 쓰기
