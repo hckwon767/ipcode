@@ -68,7 +68,7 @@ def extract_ip_port_country_code_yaml(url: str) -> List[str]:
             except:
                 sort_key = [999, 999, 999, 999] # 도메인/IPv6는 하단 정렬
 
-            entry_str = f"{server}:{port}#{raw_code} {kor_name} {port}"
+            entry_str = f"{server}:{port}#{raw_code} {kor_name} {port} VIP"
             
             if not any(e['string'] == entry_str for e in extracted_data):
                 extracted_data.append({'sort_key': sort_key, 'string': entry_str})
