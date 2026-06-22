@@ -88,5 +88,5 @@ def save_transformed_ip(url: str, output_filename: str):
 
 
 # 실행
-target_url = "https://bestcf.pages.dev/tiancheng/all.txt"
+target_url = "https://bestcf.pages.dev/xinyitang3/ipv4.txt"
 save_transformed_ip(target_url, "tiancheng.txt")
