@@ -113,8 +113,9 @@ def save_transformed_ip(urls: Union[str, List[str]], output_filename: str):
 # 실행
 # URL을 1개만 쓰고 싶으면 리스트에 1개만, 2개/3개/4개... 쓰고 싶으면 그만큼 추가하면 됩니다.
 target_urls = [
-    "https://bestcf.pages.dev/cmliu/all.txt",
-    "https://bestcf.pages.dev/cmliu2/all.txt",
+    "https://raw.githubusercontent.com/cmliu/WorkerVless2sub/refs/heads/main/addressesapi.txt",
+    #"https://bestcf.pages.dev/cmliu/all.txt",
+    #"https://bestcf.pages.dev/cmliu2/all.txt",
     # "https://example.com/yet-another.txt",
 ]
 
