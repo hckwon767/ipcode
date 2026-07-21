@@ -1,8 +1,10 @@
-import requests
+import re
 from typing import Dict, List, Union
+import requests
 
-# 국가 코드 -> 한국어 국가명 매핑
-COUNTRY_MAP: Dict[str, str] = {
+# 2자리 국가 코드 및 3자리 공항(IATA)/지역 코드 -> 한국어 명칭 매핑
+LOCATION_MAP: Dict[str, str] = {
+    # --- 2자리 ISO 국가 코드 ---
     'HK': '홍콩', 'SG': '싱가포르', 'JP': '일본', 'KR': '한국',
     'TW': '대만', 'US': '미국', 'GB': '영국', 'FR': '프랑스',
     'DE': '독일', 'NL': '네덜란드', 'CA': '캐나다', 'CN': '중국',
@@ -18,6 +20,17 @@ COUNTRY_MAP: Dict[str, str] = {
     'PK': '파키스탄', 'IR': '이란', 'IQ': '이라크', 'MN': '몽골',
     'CZ': '체코', 'RO': '루마니아', 'HU': '헝가리', 'GR': '그리스',
     'BG': '불가리아', 'LU': '룩셈부르크', 'KZ': '카자흐스탄',
+
+    # --- 3자리 IATA / 주요 지역 코드 ---
+    'HKG': '홍콩',
+    'SIN': '싱가포르',
+    'NRT': '일본', 'HND': '일본', 'KIX': '일본', 'NGO': '일본', 'FUK': '일본',
+    'ICN': '한국', 'GMP': '한국', 'PUS': '한국',
+    'TPE': '대만', 'KHH': '대만', 'TSA': '대만',
+    'LAX': '미국', 'SJC': '미국', 'SFO': '미국', 'JFK': '미국', 'SEA': '미국', 'ORD': '미국', 'EWR': '미국', 'IAD': '미국',
+    'LHR': '영국', 'CDG': '프랑스', 'FRA': '독일', 'AMS': '네덜란드',
+    'SYD': '호주', 'MEL': '호주', 'BKK': '태국', 'SGN': '베트남', 'HAN': '베트남',
+    'KUL': '말레이시아', 'MNL': '필리핀', 'CGK': '인도네시아', 'DXB': '아랍에미리트',
 }
 
 
@@ -41,34 +54,29 @@ def _process_lines(lines: List[str]) -> List[str]:
         address, tag_content = line.split('#', 1)
         address = address.strip()
 
-        # '|' 로 구분된 필드 분리
-        # 형식 예시 1 (tiancheng): 불필요 | 불필요 | 국가코드 | 불필요
-        # 형식 예시 2 (cmliu):     불필요 | 국가명(중문) 국가코드 | 불필요
-        fields = [f.strip() for f in tag_content.split('|')]
+        # 안전한 포트 추출 (IPv4 및 IPv6 대응)
+        port = address.rsplit(':', 1)[-1] if ':' in address else '443'
 
-        # 각 필드의 마지막 토큰 중에서 영문 2자리 국가코드를 탐색
-        country_code = None
-        for field in fields:
-            tokens = field.split()
-            if not tokens:
-                continue
-            candidate = tokens[-1].strip().upper()
-            if len(candidate) == 2 and candidate.isascii() and candidate.isalpha():
-                country_code = candidate
+        # 태그 내 구분자(| 또는 공백 등) 기준으로 모든 토큰 분리
+        tokens = re.split(r'[|\s]+', tag_content)
+
+        code_found = None
+        country_name = None
+
+        # LOCATION_MAP에 매핑된 코드(2자리/3자리) 탐색
+        for token in tokens:
+            candidate = token.strip().upper()
+            if candidate in LOCATION_MAP:
+                code_found = candidate
+                country_name = LOCATION_MAP[candidate]
                 break
 
-        # 국가코드를 찾지 못한 라인(공지/헤더성 라인)은 스킵
-        if not country_code:
+        # 코드나 국가명을 찾지 못한 라인(공지/헤더성 라인)은 스킵
+        if not code_found or not country_name:
             continue
 
-        # 포트 추출
-        port = address.split(':')[-1]
-
-        # 국가코드 -> 한국어 국가명 (매핑에 없으면 원본 코드 유지)
-        country_name = COUNTRY_MAP.get(country_code, country_code)
-
-        # 새로운 형식 구성: ip:port#영어국가코드 한글국가명 port
-        new_line = f"{address}#{country_code} {country_name} {port} 신규"
+        # 새로운 형식 구성: ip:port#지역코드 한글국가명 port 신규
+        new_line = f"{address}#{code_found} {country_name} {port} 신규"
         result_lines.append(new_line)
 
     return result_lines
@@ -79,7 +87,6 @@ def save_transformed_ip(urls: Union[str, List[str]], output_filename: str):
     urls: 문자열 1개(기존 방식) 또는 문자열 리스트(여러 URL).
     여러 URL을 주면 모두 가져와서 처리한 뒤, 하나의 output_filename 에 합쳐서 저장합니다.
     """
-    # 문자열 1개만 들어와도 동작하도록 리스트로 통일
     if isinstance(urls, str):
         urls = [urls]
 
@@ -111,13 +118,11 @@ def save_transformed_ip(urls: Union[str, List[str]], output_filename: str):
 
 
 # 실행
-# URL을 1개만 쓰고 싶으면 리스트에 1개만, 2개/3개/4개... 쓰고 싶으면 그만큼 추가하면 됩니다.
 target_urls = [
     "https://raw.githubusercontent.com/cmliu/WorkerVless2sub/refs/heads/main/addressesapi.txt",
     "https://bestcf.pages.dev/wetest/ipv4.txt",
     #"https://bestcf.pages.dev/cmliu/all.txt",
     #"https://bestcf.pages.dev/cmliu2/all.txt",
-    # "https://example.com/yet-another.txt",
 ]
 
 save_transformed_ip(target_urls, "tiancheng.txt")
