@@ -120,7 +120,7 @@ def save_transformed_ip(urls: Union[str, List[str]], output_filename: str):
 # 실행
 target_urls = [
     "https://raw.githubusercontent.com/cmliu/WorkerVless2sub/refs/heads/main/addressesapi.txt",
-    "https://bestcf.pages.dev/wetest/ipv4.txt",
+    "https://bestcf.pages.dev/xinyitang3/ipv4.txt",
     #"https://bestcf.pages.dev/cmliu/all.txt",
     #"https://bestcf.pages.dev/cmliu2/all.txt",
 ]
