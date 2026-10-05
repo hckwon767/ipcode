@@ -58,11 +58,11 @@ def _process_lines(lines: List[str]) -> List[str]:
         port = address.rsplit(':', 1)[-1] if ':' in address else '443'
 
         if port == '443':
-            port = '8443'
+            port = '2053'
             if ':' in address:
-                address = address.rsplit(':', 1)[0] + ':8443'
+                address = address.rsplit(':', 1)[0] + ':2053'
             else:
-                address = f"{address}:8443"
+                address = f"{address}:2053"
 
         # 태그 내 구분자(| 또는 공백 등) 기준으로 모든 토큰 분리
         tokens = re.split(r'[|\s]+', tag_content)
