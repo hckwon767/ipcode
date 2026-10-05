@@ -55,7 +55,8 @@ def _process_lines(lines: List[str]) -> List[str]:
         address = address.strip()
 
         # 안전한 포트 추출 (IPv4 및 IPv6 대응)
-        port = address.rsplit(':', 1)[-1] if ':' in address else '443'
+        # port = address.rsplit(':', 1)[-1] if ':' in address else '443'
+        port = '8443'
 
         # 태그 내 구분자(| 또는 공백 등) 기준으로 모든 토큰 분리
         tokens = re.split(r'[|\s]+', tag_content)
