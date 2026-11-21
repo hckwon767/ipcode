@@ -42,6 +42,28 @@ def country_code_to_emoji(code: str) -> str:
     return ''.join(chr(0x1F1E6 + ord(c) - ord('A')) for c in code)
 
 
+def _lookup_location(tag_content: str):
+    """태그 문자열에서 (코드, 한글 국가명)을 찾아 반환. 못 찾으면 (None, None)"""
+    # 구분자: | 공백 - _ , / 등
+    tokens = re.split(r'[|\s\-_,/]+', tag_content)
+
+    for token in tokens:
+        candidate = token.strip().upper()
+        if not candidate:
+            continue
+
+        # 1) 원본 그대로 매칭 (예: HKG, US)
+        if candidate in LOCATION_MAP:
+            return candidate, LOCATION_MAP[candidate]
+
+        # 2) 끝의 숫자 제거 후 매칭 (예: HKG1 -> HKG, LAX3 -> LAX)
+        stripped = re.sub(r'\d+$', '', candidate)
+        if stripped and stripped in LOCATION_MAP:
+            return stripped, LOCATION_MAP[stripped]
+
+    return None, None
+
+
 def _process_lines(lines: List[str]) -> List[str]:
     """한 URL에서 받은 텍스트(라인 목록)를 변환된 라인 목록으로 가공"""
     result_lines = []
@@ -57,25 +79,13 @@ def _process_lines(lines: List[str]) -> List[str]:
         # 안전한 포트 추출 (IPv4 및 IPv6 대응)
         port = address.rsplit(':', 1)[-1] if ':' in address else '443'
 
-        # 태그 내 구분자(| 또는 공백 등) 기준으로 모든 토큰 분리
-        tokens = re.split(r'[|\s]+', tag_content)
+        code_found, country_name = _lookup_location(tag_content)
 
-        code_found = None
-        country_name = None
-
-        # LOCATION_MAP에 매핑된 코드(2자리/3자리) 탐색
-        for token in tokens:
-            candidate = token.strip().upper()
-            if candidate in LOCATION_MAP:
-                code_found = candidate
-                country_name = LOCATION_MAP[candidate]
-                break
-
-        # 코드나 국가명을 찾지 못한 라인(공지/헤더성 라인)은 스킵
+        # 코드나 국가명을 찾지 못한 라인(UNK-UNK, 공지/헤더 등)은 스킵
         if not code_found or not country_name:
             continue
 
-        # 새로운 형식 구성: ip:port#지역코드 한글국가명 port 신규
+        # 새로운 형식 구성: ip:port#지역코드 한글국가명 port high
         new_line = f"{address}#{code_found} {country_name} {port} high"
         result_lines.append(new_line)
 
@@ -130,4 +140,5 @@ target_urls = [
     #"https://bestcf.pages.dev/cmliu2/all.txt",
 ]
 
-save_transformed_ip(target_urls, "aliveip.txt")
+if __name__ == "__main__":
+    save_transformed_ip(target_urls, "aliveip.txt")
