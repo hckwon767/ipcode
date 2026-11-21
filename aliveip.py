@@ -130,4 +130,4 @@ target_urls = [
     #"https://bestcf.pages.dev/cmliu2/all.txt",
 ]
 
-save_transformed_ip(target_urls, "tiancheng.txt")
+save_transformed_ip(target_urls, "aliveip.txt")
