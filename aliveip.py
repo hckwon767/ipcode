@@ -52,5 +52,5 @@ def save_transformed_ip(url: str, output_filename: str):
         print(f"오류 발생: {e}")
 
 # 실행
-target_url = "https://raw.githubusercontent.com/rxsweet/cfip/refs/heads/main/ip/allip.txt"
+target_url = "https://raw.githubusercontent.com/rxsweet/cfip/refs/heads/main/ip/hk.txt"
 save_transformed_ip(target_url, "aliveip.txt")
